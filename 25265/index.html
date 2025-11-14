@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Millets Platform Launcher</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #f7f7f9; color: #222; }
+    .card { max-width: 720px; margin: 40px auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); overflow: hidden; }
+    .card header { padding: 20px 24px; background: #0d6efd; color: #fff; font-size: 18px; font-weight: 600; }
+    .card .content { padding: 22px 24px; }
+    .row { margin: 10px 0; }
+    .btn { display: inline-block; background: #0d6efd; color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-size: 14px; }
+    .btn.secondary { background: #6c757d; }
+    .hint { color: #555; font-size: 14px; }
+    .ok { color: #16a34a; }
+    .warn { color: #b45309; }
+    iframe { width: 100%; height: 80vh; border: 0; border-top: 1px solid #e5e7eb; }
+    .center { text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <header>Millets Value Chain Platform</header>
+    <div class="content">
+      <div id="status" class="row hint">Checking for static build and dev server ...</div>
+      <div class="row">
+        <button class="btn" onclick="openFrontend()">Open Frontend</button>
+        <button class="btn secondary" style="margin-left:10px" onclick="retry()">Retry Check</button>
+      </div>
+      <div class="row hint">Tip: For a serverless interface, run <b>run_static_frontend.bat</b>. It creates <code>frontend/build</code> and this page will load it automatically.</div>
+    </div>
+    <iframe id="appFrame" style="display:none"></iframe>
+  </div>
+
+  <script>
+    const FRONTEND_URL = 'http://localhost:3000';
+    // Use relative path so it works with Live Server from project root
+    const STATIC_BUILD_PATH = 'frontend/build/index.html';
+    const statusEl = document.getElementById('status');
+    const frameEl = document.getElementById('appFrame');
+
+    async function isStaticBuildAvailable() {
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 1200);
+        const res = await fetch(STATIC_BUILD_PATH, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(t);
+        return res.ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function isFrontendUp() {
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 1500);
+        const res = await fetch(FRONTEND_URL, { mode: 'no-cors', signal: controller.signal });
+        clearTimeout(t);
+        return true; // no-cors won't error if reachable
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function checkAndShow() {
+      statusEl.textContent = 'Checking for static build ...';
+      const hasStatic = await isStaticBuildAvailable();
+      if (hasStatic) {
+        statusEl.innerHTML = '<span class="ok">Static build found.</span> Loading production UI...';
+        frameEl.style.display = 'block';
+        frameEl.src = STATIC_BUILD_PATH;
+        return;
+      }
+
+      statusEl.textContent = 'Static build not found. Checking dev server at ' + FRONTEND_URL + ' ...';
+      const up = await isFrontendUp();
+      if (up) {
+        statusEl.innerHTML = '<span class="ok">Dev server is running.</span> Loading...';
+        try { frameEl.style.display = 'block'; frameEl.src = FRONTEND_URL; }
+        catch (e) { window.location.href = FRONTEND_URL; }
+        return;
+      }
+
+      // Fallback: show minimal static prototype
+      statusEl.innerHTML = '<span class="warn">No static build and dev server is not running.</span> Showing basic prototype. To get full UI: run <b>run_static_frontend.bat</b>.';
+      renderPrototype();
+    }
+
+    function openFrontend() {
+      window.open(STATIC_BUILD_PATH, '_blank');
+      setTimeout(() => window.open(FRONTEND_URL, '_blank'), 400);
+    }
+
+    function retry() { checkAndShow(); }
+
+    function renderPrototype() {
+      const container = document.createElement('div');
+      container.innerHTML = `
+        <div style="max-width:1080px;margin:24px auto;padding:20px;border:1px solid #e5e7eb;border-radius:12px;background:#fff">
+          <h2 style="margin-top:0">Millets Value Chain Platform</h2>
+          <p>Static preview. Build the full interface by running <code>run_static_frontend.bat</code>.</p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin:16px 0">
+            <a href="#" style="padding:10px 14px;background:#0d6efd;color:#fff;border-radius:8px;text-decoration:none">Marketplace</a>
+            <a href="#" style="padding:10px 14px;border:1px solid #0d6efd;color:#0d6efd;border-radius:8px;text-decoration:none">Login</a>
+            <a href="#" style="padding:10px 14px;border:1px solid #0d6efd;color:#0d6efd;border-radius:8px;text-decoration:none">Register</a>
+          </div>
+          <ul style="line-height:1.9;margin-left:16px">
+            <li>AI Price Prediction</li>
+            <li>Blockchain Traceability</li>
+            <li>Government Schemes</li>
+            <li>Market Prices</li>
+          </ul>
+        </div>`;
+      document.body.appendChild(container);
+    }
+
+    // Auto-check on load
+    checkAndShow();
+  </script>
+</body>
+</html>
+
+
